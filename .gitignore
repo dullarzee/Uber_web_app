@@ -43,3 +43,6 @@ next-env.d.ts
 
 #workspace
 *.code-workspace
+
+#ignore test files
+src/app/test

@@ -12,7 +12,7 @@ export default function InAppNavBar() {
     return (
         <>
             <nav
-                className="fixed z-100 flex items-center w-full h-18 top-0 left-0 bg-white px-[4.5%] border-b-4
+                className="fixed z-[1500] flex items-center w-full h-18 top-0 left-0 bg-white px-[4.5%] border-b-4
              border-gray-200 justify-between"
             >
                 <div className="flex items-center w-[32%] justify-between">

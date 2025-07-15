@@ -1,40 +1,38 @@
 import { SetStateAction, useRef, useEffect, useState } from "react";
 import LocationSuggchild from "./locationSuggChild";
-import { inputValueTypes, stopsTypes, suggVisibleTypes } from "./orderRideBars";
+import { inputValueTypes, suggVisibleTypes } from "./orderRideBars";
+import { coordinatesTypes, stopsAddressesTypes } from "./locationContexts";
 
-export interface coordinatesTypes {
-    latitude: number;
-    longitude: number;
-    selectedPlace: string;
-    places: string[];
-}
 export interface retrievedLocationTypes {
     formatted: string;
+    geometry: { lat: number; lng: number };
 }
 export interface suggestionTypes {
     place: string;
     address: string;
 }
+export type belongToTypes = "pickup" | "dropOff" | `stop${number}`;
+
+interface locationSuggNodeProps {
+    inputValue: string;
+    stops: stopsAddressesTypes;
+    setInputValues: React.Dispatch<SetStateAction<inputValueTypes>>;
+    setStops: React.Dispatch<SetStateAction<stopsAddressesTypes>>;
+    pickUp?: boolean;
+    belongTo: belongToTypes;
+    setSuggVisible: React.Dispatch<SetStateAction<suggVisibleTypes>>;
+    setStopsSuggVisible: React.Dispatch<SetStateAction<boolean[]>>;
+}
+
 export default function LocationSuggNode({
     inputValue,
     setInputValues,
     setStops,
     pickUp = false,
-    coordinates,
-    setCoordinates,
+    belongTo,
     setSuggVisible,
     setStopsSuggVisible,
-}: {
-    inputValue: string;
-    stops: stopsTypes;
-    setInputValues: React.Dispatch<SetStateAction<inputValueTypes>>;
-    setStops: React.Dispatch<SetStateAction<stopsTypes>>;
-    pickUp?: boolean;
-    coordinates: coordinatesTypes;
-    setCoordinates: React.Dispatch<SetStateAction<coordinatesTypes>>;
-    setSuggVisible: React.Dispatch<SetStateAction<suggVisibleTypes>>;
-    setStopsSuggVisible: React.Dispatch<SetStateAction<boolean[]>>;
-}) {
+}: locationSuggNodeProps) {
     const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
     const [suggestions, setSuggestions] = useState<React.JSX.Element[] | null>(
         []
@@ -53,10 +51,13 @@ export default function LocationSuggNode({
             //converting inputted address to a more suitable format for open cage API
             const res1 = inputValue.replaceAll(",", "%2C");
             const res2 = res1.replaceAll(" ", "+");
+
+            //attempting to debounce each keystroke before an API call
             if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
 
             const suggestions: React.JSX.Element[] = [...Array(10)];
             timeoutIdRef.current = setTimeout(() => {
+                //API call
                 retrieveSuggestions(res2).then(
                     (results: retrievedLocationTypes[]) => {
                         if (results.length > 0) {
@@ -74,11 +75,19 @@ export default function LocationSuggNode({
                                         .split(",")
                                         .slice(1)
                                         .join(",");
-                                    console.log(address);
+                                    const { lat, lng } = result.geometry;
+                                    const suggCoordinates: coordinatesTypes = [
+                                        lat,
+                                        lng,
+                                    ];
                                     suggestions.push(
                                         <LocationSuggchild
-                                            key={index}
                                             type="location"
+                                            belongTo={belongTo}
+                                            setStops={setStops}
+                                            key={index}
+                                            suggCoordinates={suggCoordinates}
+                                            setInputValues={setInputValues}
                                             setSuggVisible={setSuggVisible}
                                             setStopsSuggVisible={
                                                 setStopsSuggVisible
@@ -108,8 +117,8 @@ export default function LocationSuggNode({
     return (
         <>
             <section
-                className="absolute top-[100%] left-0 w-full z-120
-            bg-white shadow-2xl rounded-lg pl-4 pb-2"
+                className="absolute top-[100%] left-0 w-full z-[1200]
+            bg-white shadow-2xl rounded-lg pl-4 pb-2 max-h-[15rem] overflow-y-auto"
             >
                 <div className="flex items-center h-18 border-b border-b-gray-200 ">
                     <button className="text-[0.9rem] md:text-[1rem] text-black rounded-full px-4 py-2 bg-gray-300">
@@ -121,8 +130,8 @@ export default function LocationSuggNode({
                     {!inputValue && pickUp && (
                         <LocationSuggchild
                             type="allowLocation"
-                            coordinates={coordinates}
-                            setCoordinates={setCoordinates}
+                            belongTo={belongTo}
+                            setStops={setStops}
                             setSuggVisible={setSuggVisible}
                             setStopsSuggVisible={setStopsSuggVisible}
                             setInputValues={setInputValues}
@@ -130,6 +139,8 @@ export default function LocationSuggNode({
                     )}
                     <LocationSuggchild
                         type="setLocationOnMap"
+                        belongTo={belongTo}
+                        setStops={setStops}
                         setSuggVisible={setSuggVisible}
                         setStopsSuggVisible={setStopsSuggVisible}
                     />

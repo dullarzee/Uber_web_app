@@ -1,28 +1,42 @@
 import { SetStateAction, useState } from "react";
-import type { coordinatesTypes } from "./locationSuggNode";
+import type { belongToTypes } from "./locationSuggNode";
 import type { inputValueTypes, suggVisibleTypes } from "./orderRideBars";
+import {
+    useLocationContext,
+    coordinatesTypes,
+    stopsAddressesTypes,
+    locationContextTypes,
+} from "./locationContexts";
 
+interface locationSuggChildProps {
+    type: "location" | "allowLocation" | "setLocationOnMap";
+    place?: string;
+    address?: string;
+    suggCoordinates?: coordinatesTypes;
+    setStops: React.Dispatch<SetStateAction<stopsAddressesTypes>>;
+    belongTo: belongToTypes;
+    setSuggVisible: React.Dispatch<SetStateAction<suggVisibleTypes>>;
+    setStopsSuggVisible: React.Dispatch<SetStateAction<boolean[]>>;
+    setInputValues?: React.Dispatch<SetStateAction<inputValueTypes>>;
+}
 export default function LocationSuggchild({
     type = "location",
     place,
     address,
-    setCoordinates,
+    suggCoordinates,
+    setStops,
+    belongTo,
     setSuggVisible,
     setStopsSuggVisible,
     setInputValues,
-}: {
-    type: "location" | "allowLocation" | "setLocationOnMap";
-    place?: string;
-    address?: string;
-    coordinates?: coordinatesTypes;
-    setCoordinates?: React.Dispatch<SetStateAction<coordinatesTypes>>;
-    setSuggVisible: React.Dispatch<SetStateAction<suggVisibleTypes>>;
-    setStopsSuggVisible: React.Dispatch<SetStateAction<boolean[]>>;
-    setInputValues?: React.Dispatch<SetStateAction<inputValueTypes>>;
-}) {
+}: locationSuggChildProps) {
+    const { setLocationState } = useLocationContext();
     const [isRetrievingPos, setIsRetrievingPos] = useState(false);
 
-    const GeocodeProcess = async (latitude: number, longitude: number) => {
+    const reverseGeocodeProcess = async (
+        latitude: number,
+        longitude: number
+    ) => {
         try {
             const response = await fetch(
                 `/in_app/geocodeApi?lat=${latitude}&long=${longitude}`,
@@ -39,6 +53,11 @@ export default function LocationSuggchild({
                     pickUp: address,
                 }));
             }
+            setLocationState((prev) => ({
+                ...prev,
+                pickupCoordinates: [latitude, longitude],
+                pickupAddress: address,
+            }));
         } catch (error) {
             console.log("failed to fetch addresses", error);
         }
@@ -48,17 +67,9 @@ export default function LocationSuggchild({
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 const { latitude, longitude } = position.coords;
-                if (setCoordinates) {
-                    setCoordinates((prev) => ({
-                        ...prev,
-                        latitude: latitude,
-                        longitude: longitude,
-                    }));
-                    console.log("tried setting location in input");
-                }
                 console.log("latitude:", latitude, "longitude:", longitude);
                 setIsRetrievingPos(false);
-                GeocodeProcess(latitude, longitude);
+                reverseGeocodeProcess(latitude, longitude);
             },
             (error) => {
                 console.log("error retrieving position: ", error);
@@ -71,7 +82,27 @@ export default function LocationSuggchild({
             }
         );
     };
+
+    const handleSettingStopsInput = (
+        stops: stopsAddressesTypes,
+        stopIndex: number
+    ): stopsAddressesTypes => {
+        stops[stopIndex] = `${place}${address}`;
+        return stops;
+    };
+
+    const handleSettingStopsContext = (
+        locationState: locationContextTypes,
+        stopIndex: number
+    ): locationContextTypes => {
+        const obj = { ...locationState };
+        if (suggCoordinates) obj.stopsCoordinates[stopIndex] = suggCoordinates;
+        obj.stopsAddresses[stopIndex] = `${place}${address}`;
+        return obj;
+    };
+
     const handleClick = async () => {
+        //if allow location is clicked
         if (type === "allowLocation") {
             setIsRetrievingPos(true);
             handleLocationAccess();
@@ -81,13 +112,78 @@ export default function LocationSuggchild({
                     dropOffOriginalSuggVisible: false,
                 });
                 setStopsSuggVisible([false, false, false, false]);
-            }, 2500);
-        } else if (type === "location" || type === "setLocationOnMap") {
+            }, 2000);
+            //if a location suggestion was clicked
+        } else if (type === "location") {
             setSuggVisible({
                 pickUpSuggVisible: false,
                 dropOffOriginalSuggVisible: false,
             });
             setStopsSuggVisible([false, false, false, false]);
+
+            //if the suggestion clicked belonged to the pick up input
+            if (belongTo === "pickup") {
+                //filling input with clicked suggestion
+                if (setInputValues)
+                    setInputValues((prev) => ({
+                        ...prev,
+                        pickUp: `${place}${address}`,
+                    }));
+
+                //setting pickup coordinates and address from data saved in suggestion node
+                if (suggCoordinates)
+                    setLocationState((prev) => ({
+                        ...prev,
+                        pickupCoordinates: suggCoordinates,
+                        pickupAddress: `${place}${address}`,
+                    }));
+
+                //if the suggestion clicked belonged to the drop off input
+            } else if (belongTo === "dropOff") {
+                if (setInputValues)
+                    setInputValues((prev) => ({
+                        ...prev,
+                        dropOffOriginal: `${place}${address}`,
+                    }));
+                //setting drop off coordinates and address from data saved in suggestion node
+                if (suggCoordinates)
+                    setLocationState((prev) => ({
+                        ...prev,
+                        dropOffCoordinates: suggCoordinates,
+                        dropOffAddress: `${place}${address}`,
+                    }));
+            } else if (belongTo === "stop1") {
+                //i didnt want to pass the original state variable,
+                //  so i accessed it from the state setter callback
+                setStops((prev) => [...handleSettingStopsInput(prev, 0)]); //have to spread the returned array of type stops addresses types
+                if (suggCoordinates)
+                    //React's special way of setting context for stops
+                    setLocationState((prev) => ({
+                        ...handleSettingStopsContext(prev, 0),
+                    }));
+            } else if (belongTo === "stop2") {
+                setStops((prev) => [...handleSettingStopsInput(prev, 1)]);
+                if (suggCoordinates) {
+                    //React's special way of setting context for stops
+                    setLocationState((prev) => ({
+                        ...handleSettingStopsContext(prev, 1),
+                    }));
+                }
+            } else if (belongTo === "stop3") {
+                setStops((prev) => [...handleSettingStopsInput(prev, 2)]); //have to spread the returned array of type stops addresses types
+                if (suggCoordinates)
+                    //React's special way of setting context for stops
+                    setLocationState((prev) => ({
+                        ...handleSettingStopsContext(prev, 2),
+                    }));
+            } else if (belongTo === "stop4") {
+                setStops((prev) => [...handleSettingStopsInput(prev, 3)]);
+                if (suggCoordinates)
+                    //React's special way of setting context for stops
+                    setLocationState((prev) => ({
+                        ...handleSettingStopsContext(prev, 3),
+                    }));
+            }
         }
     };
 

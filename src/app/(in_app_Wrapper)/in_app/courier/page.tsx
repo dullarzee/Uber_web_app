@@ -1,9 +1,13 @@
 "use client";
 
+import { Metadata } from "next";
 import Image from "next/image";
 import { useState } from "react";
-import OrderRideBars from "../../../../components/orderRideBars";
+import OrderRideBars from "../../../../../components/orderRideBars";
 
+export const metadata: Metadata = {
+    title: "Uber App",
+};
 export default function CourierPage() {
     const [courierType, setCourierType] = useState("send");
     return (

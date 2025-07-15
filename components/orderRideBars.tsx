@@ -1,7 +1,13 @@
 "use client";
 
 import { ChangeEvent, useState } from "react";
-import LocationSuggNode, { coordinatesTypes } from "./locationSuggNode";
+import LocationSuggNode from "./locationSuggNode";
+import {
+    useLocationContext,
+    stopsAddressesTypes,
+    stopsCoordinatesTypes,
+    coordinatesTypes,
+} from "./locationContexts";
 
 export interface suggVisibleTypes {
     pickUpSuggVisible: boolean;
@@ -20,12 +26,15 @@ export default function OrderRideBars({
 }: {
     type: "homepage" | "ride" | "courier";
 }) {
+    const { setLocationState } = useLocationContext();
+    //state variables for keeping the trip data(pickup and drop off location)
+    //before loading it into context
     const [dropOffLocations, setDropOffLocations] = useState<number>(1);
     const [inputValues, setInputValues] = useState({
         pickUp: "",
         dropOffOriginal: "",
     });
-    const [stops, setStops] = useState<string[]>([]);
+    const [stops, setStops] = useState<stopsAddressesTypes>(["", "", "", ""]);
     const [suggVisible, setSuggVisible] = useState({
         pickUpSuggVisible: false,
         dropOffOriginalSuggVisible: false,
@@ -36,18 +45,12 @@ export default function OrderRideBars({
         false,
         false,
     ]);
-    const [coordinates, setCoordinates] = useState<coordinatesTypes>({
-        latitude: 0,
-        longitude: 0,
-        selectedPlace: "",
-        places: [],
-    });
 
     const handleSetStopValue = (
         e: ChangeEvent<HTMLInputElement>,
         index: number
     ) => {
-        const array: string[] = [...stops];
+        const array: stopsAddressesTypes = [...stops];
         array[index] = e.target.value;
         setStops(array);
     };
@@ -65,7 +68,29 @@ export default function OrderRideBars({
         }));
     };
 
+    //minor function for setting first stop coordinate from dropoff input after clicking bus-stops increase button
+    const minorFunc = (
+        coords: coordinatesTypes,
+        stopsCoordinates: stopsCoordinatesTypes
+    ): stopsCoordinatesTypes => {
+        stopsCoordinates[0] = [...coords];
+        return stopsCoordinates;
+    };
     const handleAddStopClick = () => {
+        if (dropOffLocations === 1) {
+            const array: stopsAddressesTypes = [...stops];
+            array[0] = inputValues.dropOffOriginal;
+            setStops(array);
+            setLocationState((prev) => ({
+                ...prev,
+                stopsAddresses: array,
+                stopsCoordinates: minorFunc(
+                    prev.dropOffCoordinates,
+                    prev.stopsCoordinates
+                ),
+            }));
+        }
+        //increasing number of stops input on click until a maximum of 4 inputs
         setDropOffLocations((prev) => Math.min(prev + 1, 4));
     };
 
@@ -117,13 +142,12 @@ export default function OrderRideBars({
                     />
                     {suggVisible.pickUpSuggVisible && (
                         <LocationSuggNode
+                            belongTo="pickup"
                             inputValue={inputValues.pickUp}
                             stops={stops}
                             setInputValues={setInputValues}
                             setStops={setStops}
                             pickUp={true}
-                            coordinates={coordinates}
-                            setCoordinates={setCoordinates}
                             setSuggVisible={setSuggVisible}
                             setStopsSuggVisible={setStopsSuggVisible}
                         />
@@ -175,12 +199,11 @@ export default function OrderRideBars({
 
                         {suggVisible.dropOffOriginalSuggVisible && (
                             <LocationSuggNode
+                                belongTo="dropOff"
                                 inputValue={inputValues.dropOffOriginal}
                                 stops={stops}
                                 setInputValues={setInputValues}
                                 setStops={setStops}
-                                coordinates={coordinates}
-                                setCoordinates={setCoordinates}
                                 setSuggVisible={setSuggVisible}
                                 setStopsSuggVisible={setStopsSuggVisible}
                             />
@@ -228,12 +251,11 @@ export default function OrderRideBars({
                                 )}
                             {stopsSuggVisible[index] && (
                                 <LocationSuggNode
+                                    belongTo={`stop${index + 1}`}
                                     inputValue={stops[index]}
                                     stops={stops}
                                     setInputValues={setInputValues}
                                     setStops={setStops}
-                                    coordinates={coordinates}
-                                    setCoordinates={setCoordinates}
                                     setSuggVisible={setSuggVisible}
                                     setStopsSuggVisible={setStopsSuggVisible}
                                 />

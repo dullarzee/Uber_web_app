@@ -1,15 +1,19 @@
-import { Metadata } from "next";
-import InAppNavBar from "../../../components/inAppNavBar";
+"use client";
 
-export const metadata: Metadata = {
-    title: "Uber App",
-};
+import InAppNavBar from "../../../../components/inAppNavBar";
+import dynamic from "next/dynamic";
+
+const Map = dynamic(() => import("../../../../components/interactiveMap"), {
+    ssr: false,
+});
 
 export default function InAppLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    //const { locationState } = useLocationContext();
+
     return (
         <>
             <div className="">
@@ -19,7 +23,9 @@ export default function InAppLayout({
                         <div className="w-full">
                             <main>{children}</main>
                         </div>
-                        <div className="border-green-500 border h-90 lg:h-auto /lg:w-auto"></div>
+                        <div className="h-90 lg:h-auto">
+                            <Map />
+                        </div>
                     </div>
                 </section>
             </div>

@@ -1,4 +1,4 @@
-import OrderRideBars from "../../../../components/orderRideBars";
+import OrderRideBars from "../../../../../components/orderRideBars";
 
 export default function RidePage() {
     return (
